@@ -1,0 +1,8 @@
+node_modules/
+roms/*
+!roms/.gitkeep
+*.smd
+*.bin
+*.zip
+*.7z
+.env

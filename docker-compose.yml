@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./roms:/roms:ro
+    environment:
+      # Optional TURN relay for players behind strict NAT (mobile networks).
+      # Uncomment together with the `turn` service below.
+      # TURN_URLS: "turn:your.domain:3478?transport=udp,turn:your.domain:3478?transport=tcp"
+      # TURN_USERNAME: "arena"
+      # TURN_PASSWORD: "change-me"
+      STUN_URLS: "stun:stun.l.google.com:19302"
+
+  # turn:
+  #   image: coturn/coturn:4.6
+  #   restart: unless-stopped
+  #   network_mode: host
+  #   command: >
+  #     -n --listening-port=3478 --fingerprint --lt-cred-mech
+  #     --user=arena:change-me --realm=your.domain
+  #     --min-port=49160 --max-port=49200

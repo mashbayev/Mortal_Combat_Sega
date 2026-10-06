@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0b0b0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <title>Retro Arena</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Home: game list + join by code -->
+  <main id="home" class="screen">
+    <header class="brand">
+      <h1>RETRO <span>ARENA</span></h1>
+      <p>Классика Sega и Dendy онлайн — на компьютере и телефоне</p>
+    </header>
+
+    <form id="join-form" class="join">
+      <label for="join-code">Есть код комнаты?</label>
+      <div class="join-row">
+        <input id="join-code" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD">
+        <button type="submit" class="btn primary">Войти</button>
+      </div>
+    </form>
+
+    <section id="games" class="games"></section>
+    <p class="footnote">Онлайн: создайте бой и отправьте ссылку другу. Он подключится с телефона или компьютера.</p>
+  </main>
+
+  <!-- Invite link landing: needs a tap so the browser allows sound -->
+  <main id="invite" class="screen" hidden>
+    <div class="invite-card">
+      <p class="muted">Вас пригласили в бой</p>
+      <div class="invite-code" id="invite-code">----</div>
+      <button id="invite-join" class="btn primary big">Подключиться</button>
+      <a href="/" class="btn ghost">На главную</a>
+    </div>
+  </main>
+
+  <!-- Play -->
+  <main id="play" class="screen" hidden>
+    <div class="topbar">
+      <button class="icon-btn" id="btn-exit" title="Выйти" aria-label="Выйти">✕</button>
+      <div class="room" id="room" hidden>
+        <span class="muted">Комната</span> <b id="room-code">----</b>
+        <button class="btn small" id="btn-share">Пригласить</button>
+      </div>
+      <div class="status" id="status"><i></i><span>Загрузка…</span></div>
+      <span class="spacer"></span>
+      <button class="icon-btn" id="btn-fullscreen" title="Во весь экран" aria-label="Во весь экран">⛶</button>
+      <button class="icon-btn" id="btn-settings" title="Настройки" aria-label="Настройки">⚙</button>
+    </div>
+    <div class="stage-wrap">
+      <div class="stage" id="stage">
+        <video id="remote-video" playsinline autoplay hidden></video>
+        <div class="stage-msg" id="stage-msg" hidden></div>
+      </div>
+    </div>
+    <div class="touch" id="touch"></div>
+  </main>
+
+  <!-- Settings -->
+  <dialog id="settings">
+    <form method="dialog" class="settings">
+      <h2>Настройки</h2>
+      <label class="field" id="fighter-field" hidden>
+        <span>Мой боец (для кнопок спецприёмов)</span>
+        <select id="set-fighter"></select>
+      </label>
+      <label class="field" id="filter-field">
+        <span>Картинка</span>
+        <select id="set-filter">
+          <option value="2xScaleHQ.glslp">Сглаженная (HQ)</option>
+          <option value="4xScaleHQ.glslp">Сглаженная сильнее (4xHQ)</option>
+          <option value="crt-easymode.glslp">Как на ЭЛТ-телевизоре</option>
+          <option value="bicubic">Мягкая</option>
+          <option value="disabled">Чёткие пиксели</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Экранные кнопки</span>
+        <select id="set-touch">
+          <option value="auto">Авто (на телефоне)</option>
+          <option value="on">Всегда показывать</option>
+          <option value="off">Скрыть</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Размер кнопок <output id="out-size"></output></span>
+        <input type="range" id="set-size" min="0.7" max="1.5" step="0.05">
+      </label>
+      <label class="field">
+        <span>Прозрачность кнопок <output id="out-opacity"></output></span>
+        <input type="range" id="set-opacity" min="0.15" max="1" step="0.05">
+      </label>
+      <div class="help" id="help"></div>
+      <button class="btn primary">Готово</button>
+    </form>
+  </dialog>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
