@@ -271,38 +271,52 @@ body.playing { overflow: hidden; overscroll-behavior: none; touch-action: none; 
   font-weight: 700;
 }
 
-/* Portrait phone: game on top, controls fill the rest below it. */
-@media (orientation: portrait) {
-  body.with-touch .stage-wrap { flex: 0 0 auto; height: calc(100vw * 3 / 4); }
-  body.with-touch .touch { flex: 1 1 auto; min-height: 220px; }
-  .stick-zone { left: 0; top: 0; bottom: 0; width: 50%; }
-  .action-zone { right: calc(14px + var(--safe-r)); bottom: calc(56px + var(--safe-b)); }
-  .sys-zone { left: 50%; transform: translateX(-50%); bottom: calc(12px + var(--safe-b)); }
-}
+/* Portrait phone: game on top, controls fill the rest below it.
+   body.portrait / body.landscape are set by JS: a portrait phone can show the landscape layout
+   turned 90° (body.rotated), so the orientation media query alone can't tell. */
+body.portrait.with-touch .stage-wrap { flex: 0 0 auto; height: calc(100vw * 3 / 4); }
+body.portrait.with-touch .touch { flex: 1 1 auto; min-height: 220px; }
+body.portrait .stick-zone { left: 0; top: 0; bottom: 0; width: 50%; }
+body.portrait .action-zone { right: calc(14px + var(--safe-r)); bottom: calc(56px + var(--safe-b)); }
+body.portrait .sys-zone { left: 50%; transform: translateX(-50%); bottom: calc(12px + var(--safe-b)); }
 
-/* Landscape phone: game centred full-height, controls overlay the black side bars. */
-@media (orientation: landscape) {
-  /* The top bar floats over the black side bars so the game gets the full height. */
-  body.with-touch { --topbar: 0px; }
-  body.with-touch .topbar {
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 40px;
-    background: transparent;
-    border: 0;
-    pointer-events: none;
-  }
-  body.with-touch .topbar > * { pointer-events: auto; }
-  body.with-touch .topbar .status span { display: none; }
-  body.with-touch .topbar .icon-btn, body.with-touch .topbar .btn { opacity: 0.6; }
-  body.with-touch .touch { position: absolute; inset: var(--topbar) 0 0 0; pointer-events: none; z-index: 2; }
-  body.with-touch .touch > * { pointer-events: auto; }
-  .stick-zone { left: 0; top: 0; bottom: 0; width: 40%; }
-  /* Resting spot; while touched, JS moves it under the thumb with inline left/top. */
-  .stick-base { left: calc(var(--stick) / 2 + 28px + var(--safe-l)); top: calc(100% - var(--stick) / 2 - 36px); }
-  .action-zone { right: calc(16px + var(--safe-r)); bottom: calc(20px + var(--safe-b)); }
-  .sys-zone { left: 50%; transform: translateX(-50%); bottom: 6px; }
+/* Landscape phone: game centred full-height, controls overlay the black side bars.
+   The top bar floats over the black side bars so the game gets the full height. */
+body.landscape.with-touch { --topbar: 0px; }
+body.landscape.with-touch .topbar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 40px;
+  background: transparent;
+  border: 0;
+  pointer-events: none;
 }
+body.landscape.with-touch .topbar > * { pointer-events: auto; }
+body.landscape.with-touch .topbar .status span { display: none; }
+body.landscape.with-touch .topbar .icon-btn, body.landscape.with-touch .topbar .btn { opacity: 0.6; }
+body.landscape.with-touch .touch { position: absolute; inset: var(--topbar) 0 0 0; pointer-events: none; z-index: 2; }
+body.landscape.with-touch .touch > * { pointer-events: auto; }
+body.landscape .stick-zone { left: 0; top: 0; bottom: 0; width: 40%; }
+/* Resting spot; while touched, JS moves it under the thumb with inline left/top. */
+body.landscape .stick-base { left: calc(var(--stick) / 2 + 28px + var(--safe-l)); top: calc(100% - var(--stick) / 2 - 36px); }
+body.landscape .action-zone { right: calc(16px + var(--safe-r)); bottom: calc(20px + var(--safe-b)); }
+body.landscape .sys-zone { left: 50%; transform: translateX(-50%); bottom: 6px; }
+
+/* Portrait phone set to "always landscape" (iPhone can't lock the orientation, Android may fail
+   to): the play screen is turned 90° clockwise, so it reads right with the phone turned left.
+   --vw / --vh hold the real window size (JS); dialogs are turned the same way. */
+body.rotated { --safe-l: env(safe-area-inset-top, 0px); --safe-r: env(safe-area-inset-bottom, 0px); --safe-b: 0px; }
+body.rotated #play {
+  inset: auto;
+  top: 0;
+  left: 0;
+  width: var(--vh);
+  height: var(--vw);
+  transform-origin: 0 0;
+  transform: translateX(var(--vw)) rotate(90deg);
+}
+body.rotated dialog { inset: auto; left: 50%; top: 50%; margin: 0; transform: translate(-50%, -50%) rotate(90deg); width: min(440px, calc(var(--vh) - 32px)); max-width: none; max-height: calc(var(--vw) - 32px); }
+body.rotated dialog.wide { width: min(720px, calc(var(--vh) - 24px)); }
 
 /* ---------- settings ---------- */
 dialog {

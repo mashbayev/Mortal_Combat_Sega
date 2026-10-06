@@ -93,6 +93,13 @@
         </select>
       </label>
       <label class="field">
+        <span>Экран телефона в игре</span>
+        <select id="set-orientation">
+          <option value="landscape">Всегда горизонтально</option>
+          <option value="auto">Как держу телефон</option>
+        </select>
+      </label>
+      <label class="field">
         <span>Размер кнопок <output id="out-size"></output></span>
         <input type="range" id="set-size" min="0.7" max="1.5" step="0.05">
       </label>
@@ -127,7 +134,7 @@
         <li>Выберите <b>«На экран „Домой“»</b></li>
         <li>Откройте игру с появившегося значка</li>
       </ol>
-      <p class="muted">Пока можно повернуть телефон горизонтально — игра займёт всю высоту экрана.</p>
+      <p class="muted">А пока просто держите телефон горизонтально — игра уже развёрнута под него.</p>
       <button class="btn primary">Понятно</button>
     </form>
   </dialog>

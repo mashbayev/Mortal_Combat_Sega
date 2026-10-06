@@ -19,7 +19,7 @@ const ERRORS = {
 // ---------- settings (per device) ----------
 const settings = loadSettings();
 function loadSettings() {
-  const defaults = { size: 1, opacity: 0.55, touch: "auto", filter: "2xScaleHQ.glslp", fighter: {}, skipBriefing: {}, keys: {} };
+  const defaults = { size: 1, opacity: 0.55, touch: "auto", orientation: "landscape", filter: "2xScaleHQ.glslp", fighter: {}, skipBriefing: {}, keys: {} };
   try {
     const saved = { ...defaults, ...JSON.parse(localStorage.getItem("ra.settings") || "{}") };
     // Key bindings used to be global; they belonged to UMK3, the only game back then.
@@ -47,7 +47,7 @@ const keymaps = (game, keyboard) =>
 // Resolves true to go on, false if the player cancelled with ✕ / Esc.
 function briefing(game, keyboard, inGame = false) {
   const goFullscreen = (go) => {
-    if (go && matchMedia("(pointer: coarse)").matches) enterFullscreen();
+    if (go && isPhone()) enterFullscreen();
     return go;
   };
   if (!inGame && settings.skipBriefing[game.id]) return Promise.resolve(true).then(goFullscreen);
@@ -171,6 +171,7 @@ function setupPlay(game, { keyboard, onSpecial, onFilter }) {
     document.body.classList.toggle("with-touch", touchVisible());
     touch.setStyle(settings);
     touch.setSpecials(specialsFor());
+    applyOrientation();
   };
   applyLayout();
 
@@ -203,7 +204,7 @@ function setupPlay(game, { keyboard, onSpecial, onFilter }) {
   $("#btn-fullscreen").onclick = toggleFullscreen;
   // Desktop: double-click the game to toggle full screen.
   $("#stage").ondblclick = () => {
-    if (!matchMedia("(pointer: coarse)").matches) toggleFullscreen();
+    if (!isPhone()) toggleFullscreen();
   };
   return {
     controls,
@@ -223,6 +224,7 @@ function setupSettings(game, keyboard, onChange) {
     `<option value="">— не выбран —</option>` + fighters.map((f) => `<option>${f}</option>`).join("");
   $("#set-fighter").value = settings.fighter[game.id] || "";
   $("#set-touch").value = settings.touch;
+  $("#set-orientation").value = settings.orientation;
   $("#set-filter").value = settings.filter;
   $("#set-size").value = settings.size;
   $("#set-opacity").value = settings.opacity;
@@ -231,6 +233,7 @@ function setupSettings(game, keyboard, onChange) {
   const sync = () => {
     settings.fighter[game.id] = $("#set-fighter").value;
     settings.touch = $("#set-touch").value;
+    settings.orientation = $("#set-orientation").value;
     settings.filter = $("#set-filter").value;
     settings.size = Number($("#set-size").value);
     settings.opacity = Number($("#set-opacity").value);
@@ -251,31 +254,68 @@ function setupSettings(game, keyboard, onChange) {
 }
 
 // iPhone Safari has no Fullscreen API for pages; there the only way is a home-screen web app.
-const canFullscreen = () => !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
 const isStandalone = () => matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches || navigator.standalone;
+const inFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+const isPhone = () => matchMedia("(pointer: coarse)").matches;
 
+// Resolves true once the page is full screen. iPhone browsers expose the API but silently ignore
+// it, and Android takes a moment to switch, so wait for the change event (or give up after 1.5 s).
 function enterFullscreen() {
   const el = document.documentElement;
   const request = el.requestFullscreen || el.webkitRequestFullscreen;
-  if (!request || document.fullscreenElement || document.webkitFullscreenElement) return;
-  Promise.resolve(request.call(el, { navigationUI: "hide" })).catch(() => {});
+  if (inFullscreen()) return Promise.resolve(true);
+  if (!request) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const done = () => resolve(inFullscreen());
+    document.addEventListener("fullscreenchange", done, { once: true });
+    document.addEventListener("webkitfullscreenchange", done, { once: true });
+    setTimeout(done, 1500);
+    try {
+      Promise.resolve(request.call(el, { navigationUI: "hide" })).catch(done);
+    } catch {
+      done();
+    }
+  }).then((ok) => {
+    if (ok) lockLandscape();
+    return ok;
+  });
 }
 
-const inFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+// Android turns the screen itself, but only in full screen (or an installed app).
+function lockLandscape() {
+  if (!isPhone() || settings.orientation !== "landscape" || !screen.orientation?.lock) return;
+  screen.orientation.lock("landscape").catch(() => {});
+}
 
 function toggleFullscreen() {
   if (inFullscreen()) {
     (document.exitFullscreen || document.webkitExitFullscreen).call(document);
     return;
   }
-  if (isStandalone()) return; // home-screen app is already full screen
-  if (canFullscreen()) enterFullscreen();
-  // iPhone Safari exposes the API but silently ignores it for pages: if nothing happened,
-  // explain the home-screen way instead.
-  setTimeout(() => {
-    if (!inFullscreen()) $("#ios-fullscreen").showModal();
-  }, 400);
+  if (isStandalone()) return lockLandscape(); // home-screen app is already full screen
+  enterFullscreen().then((ok) => {
+    if (!ok) $("#ios-fullscreen").showModal(); // explain the home-screen way instead
+  });
 }
+
+// "Always landscape" on a phone held upright: if the screen couldn't be locked (iPhone, or Android
+// outside full screen), turn the play screen 90° with CSS instead.
+function applyOrientation() {
+  const portrait = matchMedia("(orientation: portrait)").matches;
+  const rotate = portrait && isPhone() && settings.orientation === "landscape" && document.body.classList.contains("playing");
+  const root = document.documentElement.style;
+  root.setProperty("--vw", `${window.innerWidth}px`);
+  root.setProperty("--vh", `${window.innerHeight}px`);
+  document.body.classList.toggle("rotated", rotate);
+  document.body.classList.toggle("portrait", portrait && !rotate);
+  document.body.classList.toggle("landscape", !portrait || rotate);
+  if (settings.orientation !== "landscape" && inFullscreen()) screen.orientation?.unlock?.();
+  else if (inFullscreen()) lockLandscape();
+}
+window.addEventListener("resize", applyOrientation);
+document.addEventListener("fullscreenchange", applyOrientation);
+document.addEventListener("webkitfullscreenchange", applyOrientation);
+applyOrientation();
 
 // ---------- emulator-running modes (local + host) ----------
 // Leaving a running game needs a confirmation: the ✕ button and the browser's back gesture

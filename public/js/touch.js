@@ -1,5 +1,10 @@
 import { DIRS } from "./schemes.js";
 
+// On a portrait phone the play screen may be turned 90° clockwise (body.rotated, see style.css).
+// Pointer events still come in window coordinates; this maps them to the screen's own frame.
+const rotated = () => document.body.classList.contains("rotated");
+const localPoint = (x, y) => (rotated() ? { x: y, y: window.innerWidth - x } : { x, y });
+
 // On-screen controls: a floating stick (appears under the thumb), action buttons
 // that can be slid across with one finger, Start/Select, and special-move buttons.
 export class TouchControls {
@@ -87,25 +92,29 @@ export class TouchControls {
       }
     };
 
+    // x, y are in the play screen's own frame (see localPoint).
     const place = (x, y) => {
       const rect = this.zone.getBoundingClientRect();
-      this.base.style.left = `${x - rect.left}px`;
-      this.base.style.top = `${y - rect.top}px`;
+      const origin = rotated() ? localPoint(rect.right, rect.top) : { x: rect.left, y: rect.top };
+      this.base.style.left = `${x - origin.x}px`;
+      this.base.style.top = `${y - origin.y}px`;
     };
 
     this.zone.addEventListener("pointerdown", (e) => {
       if (active) return;
       e.preventDefault();
       this.zone.setPointerCapture(e.pointerId);
-      active = { id: e.pointerId, x: e.clientX, y: e.clientY };
-      place(e.clientX, e.clientY);
+      const p = localPoint(e.clientX, e.clientY);
+      active = { id: e.pointerId, x: p.x, y: p.y };
+      place(p.x, p.y);
       this.zone.classList.add("active");
       update(0, 0);
     });
     this.zone.addEventListener("pointermove", (e) => {
       if (!active || e.pointerId !== active.id) return;
-      let dx = e.clientX - active.x;
-      let dy = e.clientY - active.y;
+      const p = localPoint(e.clientX, e.clientY);
+      let dx = p.x - active.x;
+      let dy = p.y - active.y;
       // Drag the base along when the thumb travels past the edge, so reversing is instant.
       const r = radius();
       const dist = Math.hypot(dx, dy);
@@ -114,8 +123,8 @@ export class TouchControls {
         active.x += dx * pull;
         active.y += dy * pull;
         place(active.x, active.y);
-        dx = e.clientX - active.x;
-        dy = e.clientY - active.y;
+        dx = p.x - active.x;
+        dy = p.y - active.y;
       }
       update(dx, dy);
     });
