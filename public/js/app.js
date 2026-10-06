@@ -6,6 +6,7 @@ import { MegaDriveRam } from "./ram.js";
 import { MacroPlayer } from "./macros.js";
 import { Signal, HostLink, GuestLink } from "./net.js";
 import { showBriefing } from "./briefing.js";
+import { loadAutosave, startAutosave } from "./autosave.js";
 
 const $ = (sel) => document.querySelector(sel);
 const ERRORS = {
@@ -88,13 +89,31 @@ function renderHome() {
       </article>`
     )
     .join("");
+  const saves = {};
+  // "Продолжить" for games with a recent autosave (page reloaded, back swipe, closed tab).
+  for (const g of config.games.filter((g) => g.available)) {
+    loadAutosave(g.id).then((save) => {
+      if (!save) return;
+      saves[g.id] = save;
+      const mins = Math.max(1, Math.round((Date.now() - save.time) / 60000));
+      const ago = mins < 60 ? `${mins} мин назад` : `${Math.round(mins / 60)} ч назад`;
+      document
+        .querySelector(`.game[data-id="${g.id}"] .game-actions`)
+        .insertAdjacentHTML("afterbegin", `<button class="btn resume" data-act="resume">▶ Продолжить <small>${ago}</small></button>`);
+    });
+  }
   $("#games").onclick = (e) => {
     const btn = e.target.closest("button[data-act]");
     if (!btn) return;
     const game = config.games.find((g) => g.id === btn.closest(".game").dataset.id);
-    const mode = btn.dataset.act;
+    let mode = btn.dataset.act;
+    let resumeState = null;
+    if (mode === "resume") {
+      resumeState = saves[game.id].state;
+      mode = saves[game.id].mode;
+    }
     briefing(game, mode === "duo" ? KEYBOARDS.duo : KEYBOARDS.solo).then(() =>
-      mode === "host" ? startHost(game) : startLocal(game, mode)
+      mode === "host" ? startHost(game, resumeState) : startLocal(game, mode, resumeState)
     );
   };
   $("#join-form").onsubmit = (e) => {
@@ -176,7 +195,7 @@ function setupPlay(game, { keyboard, onSpecial, onFilter }) {
       syncSettings();
       bindKeys();
     });
-  $("#btn-exit").onclick = () => (location.href = "/");
+  guardExit();
   $("#btn-fullscreen").onclick = toggleFullscreen;
   // Desktop: double-click the game to toggle full screen.
   $("#stage").ondblclick = () => {
@@ -255,7 +274,22 @@ function toggleFullscreen() {
 }
 
 // ---------- emulator-running modes (local + host) ----------
-async function runEmulator(game, { keyboard, gamepads, remote }) {
+// Leaving a running game needs a confirmation: the ✕ button and the browser's back gesture
+// (an easy accidental swipe from the left edge on iPhone, right where the stick is).
+function guardExit() {
+  const dlg = $("#exit-confirm");
+  history.pushState({ playing: true }, "");
+  window.addEventListener("popstate", () => {
+    history.pushState({ playing: true }, "");
+    if (!dlg.open) dlg.showModal();
+  });
+  $("#btn-exit").onclick = () => dlg.showModal();
+  dlg.onclose = () => {
+    if (dlg.returnValue === "exit") location.href = "/";
+  };
+}
+
+async function runEmulator(game, { keyboard, gamepads, remote, mode, resumeState }) {
   let session;
   const play = setupPlay(game, {
     keyboard,
@@ -300,25 +334,37 @@ async function runEmulator(game, { keyboard, gamepads, remote }) {
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
+  if (resumeState) {
+    try {
+      emu.ejs.gameManager.loadState(resumeState);
+    } catch (e) {
+      console.warn("resume failed", e);
+    }
+  }
+  startAutosave(game.id, mode, emu.ejs.gameManager);
   setStatus("ok", remote ? "Ждём соперника" : "Игра идёт");
   return session;
 }
 
-async function startLocal(game, mode) {
+async function startLocal(game, mode, resumeState) {
   const duo = mode === "duo";
   await runEmulator(game, {
     keyboard: duo ? KEYBOARDS.duo : KEYBOARDS.solo,
     gamepads: duo ? [0, 1] : [0, 0, 0, 0],
     remote: false,
+    mode,
+    resumeState,
   });
 }
 
-async function startHost(game) {
+async function startHost(game, resumeState) {
   const signal = new Signal();
   const sessionReady = runEmulator(game, {
     keyboard: KEYBOARDS.solo,
     gamepads: [0, 0, 0, 0],
     remote: true,
+    mode: "host",
+    resumeState,
   });
   signal.send({ type: "create", game: game.id });
   signal.on("error", (m) => setStatus("error", ERRORS[m.error] || m.error));

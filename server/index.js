@@ -32,6 +32,15 @@ function iceServers() {
 const app = express();
 app.disable("x-powered-by");
 
+// Page loads and ROM downloads, so reloads (e.g. a phone killing the tab) show up in the log.
+app.use((req, _res, next) => {
+  if (req.path === "/" || req.path.startsWith("/r/") || req.path.startsWith("/roms/")) {
+    const ua = String(req.headers["user-agent"] || "").replace(/^Mozilla\/5\.0 /, "").slice(0, 70);
+    console.log(new Date().toISOString().slice(11, 19), req.headers["x-forwarded-for"] || req.socket.remoteAddress, "GET", req.path, ua);
+  }
+  next();
+});
+
 app.get("/api/config", (_req, res) => {
   res.json({ iceServers: iceServers(), ejsDataPath: EJS_DATA_PATH, games: loadGames() });
 });
