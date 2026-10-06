@@ -6,3 +6,4 @@ roms/*
 *.zip
 *.7z
 .env
+*.nes

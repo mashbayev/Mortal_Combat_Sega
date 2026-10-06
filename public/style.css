@@ -243,6 +243,8 @@ body.playing { overflow: hidden; overscroll-behavior: none; touch-action: none; 
 .pad-btn[data-label="HK"], .pad-btn[data-label="LK"] { background: rgba(30, 110, 200, 0.85); }
 .pad-btn[data-label="BLK"] { background: rgba(210, 160, 20, 0.85); }
 .pad-btn[data-label="RUN"] { background: rgba(47, 143, 78, 0.85); }
+/* NES / Dendy: red A and B like the original pad, a bit bigger since there are only two. */
+.pad-btn[data-label="A"], .pad-btn[data-label="B"] { background: rgba(200, 30, 45, 0.85); width: calc(var(--btn) * 1.2); height: calc(var(--btn) * 1.2); }
 .pad-btn.down, .sys-btn.down, .special-btn.down { opacity: 1; transform: scale(0.94); filter: brightness(1.35); }
 .sys-zone { display: flex; gap: 10px; }
 .sys-btn {
@@ -410,3 +412,4 @@ kbd {
 
 .steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
 .ios-share { display: inline-block; transform: rotate(-90deg); }
+.chip-A, .chip-B { background: #c81e2d; }

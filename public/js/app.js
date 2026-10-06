@@ -20,7 +20,10 @@ const settings = loadSettings();
 function loadSettings() {
   const defaults = { size: 1, opacity: 0.55, touch: "auto", filter: "2xScaleHQ.glslp", fighter: {}, skipBriefing: {}, keys: {} };
   try {
-    return { ...defaults, ...JSON.parse(localStorage.getItem("ra.settings") || "{}") };
+    const saved = { ...defaults, ...JSON.parse(localStorage.getItem("ra.settings") || "{}") };
+    // Key bindings used to be global; they belonged to UMK3, the only game back then.
+    if (saved.keys.main || saved.keys.p2) saved.keys = { umk3: saved.keys };
+    return saved;
   } catch {
     return defaults;
   }
@@ -36,7 +39,8 @@ const KEYBOARDS = {
   solo: [{ player: 0, layout: "main" }],
   duo: [{ player: 0, layout: "main" }, { player: 1, layout: "p2" }],
 };
-const keymaps = (keyboard) => Object.fromEntries(keyboard.map((k) => [k.layout, keymapFor(k.layout, settings.keys)]));
+const keymaps = (game, keyboard) =>
+  Object.fromEntries(keyboard.map((k) => [k.layout, keymapFor(game, k.layout, settings.keys)]));
 
 // Controls reference shown before a game (unless skipped) and from the top bar.
 function briefing(game, keyboard, inGame = false) {
@@ -136,7 +140,7 @@ function setupPlay(game, { keyboard, onSpecial, onFilter }) {
     onSpecial: (s) => onSpecial(s.seq),
   });
   const input = new InputManager(controls, () => {});
-  const bindKeys = () => input.useKeyboard(keyboard, keymaps(keyboard));
+  const bindKeys = () => input.useKeyboard(keyboard, keymaps(game, keyboard));
   bindKeys();
 
   const applyLayout = () => {
@@ -151,7 +155,7 @@ function setupPlay(game, { keyboard, onSpecial, onFilter }) {
   if (game.specials) {
     window.addEventListener("keydown", (e) => {
       if (e.repeat || document.querySelector("dialog[open]")) return;
-      const main = keymapFor("main", settings.keys);
+      const main = keymapFor(game, "main", settings.keys);
       const i = SPECIAL_ACTIONS.findIndex((a) => (main[a] || []).includes(e.code));
       if (i < 0) return;
       const s = specialsFor()[i];

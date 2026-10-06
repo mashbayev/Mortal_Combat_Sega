@@ -24,24 +24,26 @@ const bindCell = (layout, action, codes) =>
   `<button type="button" class="keybind" data-layout="${layout}" data-action="${action}" title="Нажмите, чтобы назначить другую клавишу">${kbd(codes || [])}</button>`;
 const chip = (label) => `<span class="chip chip-${label}">${label}</span>`;
 
-// "D,F,LP" -> ↓ → LP ; "B+LK" -> ← + LK ; free text passes through.
+// "D,F,LP" -> ↓ → LP ; "B+LK" -> ← + LK ; button labels inside free text become chips.
+// A game's own button labels win over direction letters (on NES "B" is a button, not "back").
 export function formatMove(text, labels) {
+  const inText = labels.length ? new RegExp(`\\b(${labels.join("|")})\\b`, "g") : null;
   return text
     .split(/([,+])/)
     .map((part) => {
       const t = part.trim();
       if (t === ",") return " ";
       if (t === "+") return " + ";
-      if (ARROWS[t]) return `<b class="arrow">${ARROWS[t]}</b>`;
       if (labels.includes(t)) return chip(t);
-      return t.replace(/\b(LP|HP|LK|HK|BLK|RUN)\b/g, (m) => (labels.includes(m) ? chip(m) : m));
+      if (ARROWS[t]) return `<b class="arrow">${ARROWS[t]}</b>`;
+      return inText ? t.replace(inText, (m) => chip(m)) : t;
     })
     .join("");
 }
 
-function controlsTable(game, keyboard, custom) {
+function controlsTable(game, keyboard, saved) {
   const { rows, scheme } = resolveControls(game);
-  const layouts = keyboard.map((k) => ({ layout: k.layout, km: keymapFor(k.layout, custom) }));
+  const layouts = keyboard.map((k) => ({ layout: k.layout, km: keymapFor(game, k.layout, saved) }));
   const two = layouts.length > 1;
   const names = game.buttonNames || {};
   const padFor = (button) => GAMEPAD_NAMES[scheme.gamepad[button]] || "";
@@ -60,7 +62,9 @@ function controlsTable(game, keyboard, custom) {
   [...rows].reverse().forEach((cells, r) =>
     cells.forEach((cell, c) => lines.push(row(chip(cell.label), names[cell.label] || cell.label, buttonAction(r, c), padFor(cell.button))))
   );
-  lines.push(row(chip("Start"), "Пауза, вход второго игрока", "start", "Start"));
+  lines.push(row(chip("Start"), names.Start || "Старт / пауза", "start", "Start"));
+  // Select / Mode only when the game says what it does.
+  if (scheme.select && names[scheme.select.name]) lines.push(row(chip(scheme.select.name), names[scheme.select.name], "select", "Back"));
   return `
     <table class="ref">
       <thead><tr><th></th><th>Действие</th>${two ? "<th>Игрок 1</th><th>Игрок 2</th>" : "<th>Клавиша</th>"}<th>Геймпад</th></tr></thead>
@@ -81,8 +85,8 @@ function touchHelp(game) {
     </div>`;
 }
 
-function specialsBlock(game, fighter, labels, custom) {
-  const main = keymapFor("main", custom);
+function specialsBlock(game, fighter, labels, saved) {
+  const main = keymapFor(game, "main", saved);
   const list = (game.specials && game.specials[fighter]) || [];
   if (!fighter) return `<p class="muted">Выберите бойца — появятся его спецприёмы и кнопки для них.</p>`;
   return `
@@ -102,7 +106,7 @@ function specialsBlock(game, fighter, labels, custom) {
 // Resolves when the player presses "В бой!" (or closes the dialog when opened mid-game).
 export function showBriefing({ game, keyboard, settings, save, inGame = false }) {
   const dlg = document.getElementById("briefing");
-  const labels = Object.keys(game.buttonNames || {});
+  const labels = resolveControls(game).rows.flat().map((c) => c.label);
   const fighters = Object.keys(game.specials || {}).sort();
   const isTouch = matchMedia("(pointer: coarse)").matches;
 
@@ -164,12 +168,13 @@ export function showBriefing({ game, keyboard, settings, save, inGame = false })
 
   const assign = (layout, action, code) => {
     // A key can do only one thing: take it away from every other action of every player.
+    const saved = (settings.keys[game.id] = settings.keys[game.id] || {});
     for (const l of layoutsInUse) {
-      const km = keymapFor(l, settings.keys);
+      const km = keymapFor(game, l, settings.keys);
       for (const a of Object.keys(km)) km[a] = km[a].filter((c) => c !== code);
-      settings.keys[l] = km;
+      saved[l] = km;
     }
-    settings.keys[layout][action] = [code];
+    saved[layout][action] = [code];
     save();
   };
 
@@ -206,7 +211,7 @@ export function showBriefing({ game, keyboard, settings, save, inGame = false })
       return;
     }
     if (e.target.closest("[data-reset-keys]")) {
-      for (const l of layoutsInUse) delete settings.keys[l];
+      delete settings.keys[game.id];
       save();
       render();
     }

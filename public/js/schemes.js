@@ -55,9 +55,14 @@ export const DEFAULT_KEYS = {
 export const SPECIAL_ACTIONS = ["sp0", "sp1", "sp2", "sp3"];
 export const buttonAction = (rowFromBottom, col) => `b${rowFromBottom}_${col}`;
 
-// Defaults overridden by the player's saved bindings (custom: { layout: { action: [codes] } }).
-export function keymapFor(layout, custom = {}) {
-  return { ...DEFAULT_KEYS[layout], ...(custom[layout] || {}) };
+// Bindings for one game: engine defaults < the game's own defaults (games.json "keys")
+// < the player's saved bindings (saved: { gameId: { layout: { action: [codes] } } }).
+export function keymapFor(game, layout, saved = {}) {
+  return {
+    ...DEFAULT_KEYS[layout],
+    ...((game.keys && game.keys[layout]) || {}),
+    ...((saved[game.id] && saved[game.id][layout]) || {}),
+  };
 }
 
 // Resolves a game's control layout: rows of { label, button, id } (top row first)
