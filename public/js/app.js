@@ -174,6 +174,10 @@ function setupPlay(game, { keyboard, onSpecial, onFilter }) {
     });
   $("#btn-exit").onclick = () => (location.href = "/");
   $("#btn-fullscreen").onclick = toggleFullscreen;
+  // Desktop: double-click the game to toggle full screen.
+  $("#stage").ondblclick = () => {
+    if (!matchMedia("(pointer: coarse)").matches) toggleFullscreen();
+  };
   return {
     controls,
     input,
@@ -230,16 +234,20 @@ function enterFullscreen() {
   Promise.resolve(request.call(el, { navigationUI: "hide" })).catch(() => {});
 }
 
+const inFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+
 function toggleFullscreen() {
-  if (!canFullscreen()) {
-    if (!isStandalone()) $("#ios-fullscreen").showModal();
+  if (inFullscreen()) {
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
     return;
   }
-  if (document.fullscreenElement || document.webkitFullscreenElement) {
-    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-  } else {
-    enterFullscreen();
-  }
+  if (isStandalone()) return; // home-screen app is already full screen
+  if (canFullscreen()) enterFullscreen();
+  // iPhone Safari exposes the API but silently ignores it for pages: if nothing happened,
+  // explain the home-screen way instead.
+  setTimeout(() => {
+    if (!inFullscreen()) $("#ios-fullscreen").showModal();
+  }, 400);
 }
 
 // ---------- emulator-running modes (local + host) ----------

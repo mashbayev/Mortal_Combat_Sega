@@ -40,9 +40,10 @@ app.get("/api/health", (_req, res) => res.json({ ok: true, rooms: rooms.size }))
 
 // ROMs are never committed; they live in ROMS_DIR on the server.
 app.use("/roms", express.static(ROMS_DIR, { fallthrough: false, maxAge: "7d" }));
-app.use(express.static(path.join(ROOT, "public"), { extensions: ["html"] }));
+// no-cache = always revalidate (cheap 304s), so phones pick up new versions immediately.
+app.use(express.static(path.join(ROOT, "public"), { extensions: ["html"], setHeaders: (res) => res.set("Cache-Control", "no-cache") }));
 // Room links like /r/ABCD open the SPA, which reads the code from the URL.
-app.get("/r/:code", (_req, res) => res.sendFile(path.join(ROOT, "public", "index.html")));
+app.get("/r/:code", (_req, res) => res.set("Cache-Control", "no-cache").sendFile(path.join(ROOT, "public", "index.html")));
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws", maxPayload: 64 * 1024 });
