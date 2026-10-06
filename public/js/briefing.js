@@ -1,4 +1,4 @@
-import { KEYBOARD, SPECIAL_KEYS, resolveControls } from "./schemes.js";
+import { SPECIAL_ACTIONS, buttonAction, keymapFor, resolveControls } from "./schemes.js";
 
 // "Before the fight" reference: what every button does on keyboard, gamepad and touch,
 // basic moves and the chosen fighter's specials. Also reopened from the settings.
@@ -17,7 +17,11 @@ function keyName(code) {
   return names[code] || code;
 }
 
-const kbd = (codes) => codes.map((c) => `<kbd>${keyName(c)}</kbd>`).join(" ");
+const kbd = (codes) =>
+  codes.length ? codes.map((c) => `<kbd>${keyName(c)}</kbd>`).join(" ") : `<span class="unbound">нет клавиши</span>`;
+// A key cell the player can click to rebind.
+const bindCell = (layout, action, codes) =>
+  `<button type="button" class="keybind" data-layout="${layout}" data-action="${action}" title="Нажмите, чтобы назначить другую клавишу">${kbd(codes || [])}</button>`;
 const chip = (label) => `<span class="chip chip-${label}">${label}</span>`;
 
 // "D,F,LP" -> ↓ → LP ; "B+LK" -> ← + LK ; free text passes through.
@@ -35,41 +39,34 @@ export function formatMove(text, labels) {
     .join("");
 }
 
-function controlsTable(game, keyboard) {
+function controlsTable(game, keyboard, custom) {
   const { rows, scheme } = resolveControls(game);
-  const layouts = keyboard.map((k) => KEYBOARD[k.layout]);
+  const layouts = keyboard.map((k) => ({ layout: k.layout, km: keymapFor(k.layout, custom) }));
   const two = layouts.length > 1;
   const names = game.buttonNames || {};
-  // Keyboard rows are bottom-up, on-screen rows top-down.
-  const keysFor = (kb, r, c) => (kb.rows[rows.length - 1 - r] || [])[c] || [];
-  const dirKeys = (kb) => {
-    const order = ["up", "left", "down", "right"];
-    return order.flatMap((d) => Object.keys(kb.dirs).filter((code) => kb.dirs[code] === d));
-  };
   const padFor = (button) => GAMEPAD_NAMES[scheme.gamepad[button]] || "";
+  const row = (icon, title, action, pad) =>
+    `<tr><td>${icon}</td><td>${title}</td>${layouts
+      .map(({ layout, km }) => `<td>${bindCell(layout, action, km[action])}</td>`)
+      .join("")}<td>${pad}</td></tr>`;
 
-  const lines = [];
-  lines.push(
-    `<tr><td>${chip("⇄")}</td><td>Движение</td>${layouts.map((kb) => `<td>${kbd(dirKeys(kb))}</td>`).join("")}<td>крестовина / стик</td></tr>`
+  const lines = [
+    row(chip("↑"), "Вверх / прыжок", "up", "↑"),
+    row(chip("↓"), "Вниз / присесть", "down", "↓"),
+    row(chip("←"), "Влево", "left", "←"),
+    row(chip("→"), "Вправо", "right", "→"),
+  ];
+  // Bottom row first: it holds the most used buttons (LP, RUN, LK).
+  [...rows].reverse().forEach((cells, r) =>
+    cells.forEach((cell, c) => lines.push(row(chip(cell.label), names[cell.label] || cell.label, buttonAction(r, c), padFor(cell.button))))
   );
-  // Show the bottom row first: it holds the most used buttons (LP, RUN, LK).
-  [...rows.keys()].reverse().forEach((r) => {
-    rows[r].forEach((cell, c) => {
-      lines.push(
-        `<tr><td>${chip(cell.label)}</td><td>${names[cell.label] || cell.label}</td>${layouts
-          .map((kb) => `<td>${kbd(keysFor(kb, r, c))}</td>`)
-          .join("")}<td>${padFor(cell.button)}</td></tr>`
-      );
-    });
-  });
-  lines.push(
-    `<tr><td>${chip("Start")}</td><td>Пауза, вход второго игрока</td>${layouts.map((kb) => `<td>${kbd(kb.start)}</td>`).join("")}<td>Start</td></tr>`
-  );
+  lines.push(row(chip("Start"), "Пауза, вход второго игрока", "start", "Start"));
   return `
     <table class="ref">
-      <thead><tr><th></th><th>Действие</th>${two ? "<th>Игрок 1</th><th>Игрок 2</th>" : "<th>Клавиатура</th>"}<th>Геймпад</th></tr></thead>
+      <thead><tr><th></th><th>Действие</th>${two ? "<th>Игрок 1</th><th>Игрок 2</th>" : "<th>Клавиша</th>"}<th>Геймпад</th></tr></thead>
       <tbody>${lines.join("")}</tbody>
-    </table>`;
+    </table>
+    <p class="muted small">Чтобы поменять клавишу, нажмите на неё в таблице, а затем нужную клавишу на клавиатуре. Esc — отмена.</p>`;
 }
 
 function touchHelp(game) {
@@ -84,7 +81,8 @@ function touchHelp(game) {
     </div>`;
 }
 
-function specialsBlock(game, fighter, labels) {
+function specialsBlock(game, fighter, labels, custom) {
+  const main = keymapFor("main", custom);
   const list = (game.specials && game.specials[fighter]) || [];
   if (!fighter) return `<p class="muted">Выберите бойца — появятся его спецприёмы и кнопки для них.</p>`;
   return `
@@ -93,7 +91,7 @@ function specialsBlock(game, fighter, labels) {
         .map(
           ([name, seq], i) =>
             `<tr><td>${name}</td><td class="move">${formatMove(seq, labels)}</td><td>${
-              SPECIAL_KEYS[i] ? kbd([SPECIAL_KEYS[i]]) : ""
+              SPECIAL_ACTIONS[i] ? bindCell("main", SPECIAL_ACTIONS[i], main[SPECIAL_ACTIONS[i]]) : ""
             }</td></tr>`
         )
         .join("")}</tbody>
@@ -116,7 +114,7 @@ export function showBriefing({ game, keyboard, settings, save, inGame = false })
         ${isTouch ? `<section><h3>На телефоне</h3>${touchHelp(game)}</section>` : ""}
         <section>
           <h3>${isTouch ? "Клавиатура и геймпад" : "Управление"}</h3>
-          ${controlsTable(game, keyboard)}
+          ${controlsTable(game, keyboard, settings.keys)}
         </section>
         ${
           game.basics
@@ -134,12 +132,13 @@ export function showBriefing({ game, keyboard, settings, save, inGame = false })
                     .map((f) => `<option ${f === fighter ? "selected" : ""}>${f}</option>`)
                     .join("")}</select>
                 </label>
-                ${specialsBlock(game, fighter, labels)}
+                ${specialsBlock(game, fighter, labels, settings.keys)}
               </section>`
             : ""
         }
         <footer>
           ${inGame ? "" : `<label class="check"><input type="checkbox" name="skip" ${settings.skipBriefing[game.id] ? "checked" : ""}> Больше не показывать перед игрой</label>`}
+          <button type="button" class="btn ghost small" data-reset-keys>Сбросить клавиши</button>
           <button class="btn primary big" value="go">${inGame ? "Вернуться в игру" : "В бой!"}</button>
         </footer>
       </form>`;
@@ -158,9 +157,73 @@ export function showBriefing({ game, keyboard, settings, save, inGame = false })
       };
   };
 
+  // ----- key rebinding -----
+  let listening = null; // { layout, action, el }
+  let swallowKeyup = null;
+  const layoutsInUse = [...new Set([...keyboard.map((k) => k.layout), "main"])];
+
+  const assign = (layout, action, code) => {
+    // A key can do only one thing: take it away from every other action of every player.
+    for (const l of layoutsInUse) {
+      const km = keymapFor(l, settings.keys);
+      for (const a of Object.keys(km)) km[a] = km[a].filter((c) => c !== code);
+      settings.keys[l] = km;
+    }
+    settings.keys[layout][action] = [code];
+    save();
+  };
+
+  const onKeyDown = (e) => {
+    if (!listening) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (e.code !== "Escape") assign(listening.layout, listening.action, e.code);
+    swallowKeyup = e.code;
+    listening = null;
+    render();
+  };
+  // Stop the key that was just bound from also clicking a focused button on release.
+  const onKeyUp = (e) => {
+    if (e.code !== swallowKeyup) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    swallowKeyup = null;
+  };
+  window.addEventListener("keydown", onKeyDown, true);
+  window.addEventListener("keyup", onKeyUp, true);
+
+  dlg.onclick = (e) => {
+    const cell = e.target.closest(".keybind");
+    if (cell) {
+      dlg.querySelectorAll(".keybind.listening").forEach((el) => {
+        el.classList.remove("listening");
+        el.innerHTML = el.dataset.prev;
+      });
+      listening = { layout: cell.dataset.layout, action: cell.dataset.action };
+      cell.dataset.prev = cell.innerHTML;
+      cell.classList.add("listening");
+      cell.textContent = "Нажмите клавишу…";
+      return;
+    }
+    if (e.target.closest("[data-reset-keys]")) {
+      for (const l of layoutsInUse) delete settings.keys[l];
+      save();
+      render();
+    }
+  };
+  // Esc while waiting for a key cancels the binding, not the whole dialog.
+  dlg.oncancel = (e) => {
+    if (listening || swallowKeyup === "Escape") e.preventDefault();
+  };
+
   render();
   return new Promise((resolve) => {
-    dlg.onclose = () => resolve();
+    dlg.onclose = () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("keyup", onKeyUp, true);
+      listening = null;
+      resolve();
+    };
     dlg.showModal();
   });
 }

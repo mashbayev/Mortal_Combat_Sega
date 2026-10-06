@@ -32,34 +32,33 @@ export const SCHEMES = {
   },
 };
 
-// Main player's keys (solo, online, and player 1 when two share a keyboard).
-const MAIN = {
-  dirs: { KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right" },
-  // UMK3: bottom row LP RUN LK = R E T, top row HP BLK HK = Y Q U.
-  rows: [[["KeyR"], ["KeyE"], ["KeyT"]], [["KeyY"], ["KeyQ"], ["KeyU"]]],
-  start: ["Enter"],
-  select: ["Backspace"],
-  help: "Движение: WASD · LP R · RUN E · LK T · HP Y · BLK Q · HK U · Start: Enter",
-};
-
-export const SPECIAL_KEYS = ["KeyF", "KeyG", "KeyH", "KeyJ"];
-
-// Keyboard layouts by KeyboardEvent.code. `rows` keys follow the on-screen rows bottom-up:
-// rows[0] is the bottom row of buttons, rows[1] the row above it.
-export const KEYBOARD = {
-  solo: MAIN,
-  p1: { ...MAIN, help: `Игрок 1 — ${MAIN.help}` },
+// Default keyboard bindings by KeyboardEvent.code, keyed by action:
+// up/down/left/right, start, select, sp0..sp3 (special moves, main player only) and
+// b{row}_{col} for action buttons, where row 0 is the BOTTOM on-screen row.
+// "main" is the main player (solo, online, player 1 at a shared keyboard), "p2" the second.
+export const DEFAULT_KEYS = {
+  main: {
+    up: ["KeyW"], down: ["KeyS"], left: ["KeyA"], right: ["KeyD"],
+    // UMK3: bottom row LP RUN LK = R E T, top row HP BLK HK = Y Q U.
+    b0_0: ["KeyR"], b0_1: ["KeyE"], b0_2: ["KeyT"],
+    b1_0: ["KeyY"], b1_1: ["KeyQ"], b1_2: ["KeyU"],
+    start: ["Enter"], select: ["Backspace"],
+    sp0: ["KeyF"], sp1: ["KeyG"], sp2: ["KeyH"], sp3: ["KeyJ"],
+  },
   p2: {
-    dirs: { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" },
-    rows: [
-      [["Numpad1", "Comma"], ["Numpad2", "Period"], ["Numpad3", "Slash"]],
-      [["Numpad4", "KeyK"], ["Numpad5", "KeyL"], ["Numpad6", "Semicolon"]],
-    ],
-    start: ["NumpadEnter", "ShiftRight"],
-    select: ["NumpadAdd"],
-    help: "Игрок 2: стрелки · низ LP RUN LK: Numpad 1 2 3 (или , . /) · верх HP BLK HK: Numpad 4 5 6 (или K L ;) · Start: Numpad Enter или правый Shift",
+    up: ["ArrowUp"], down: ["ArrowDown"], left: ["ArrowLeft"], right: ["ArrowRight"],
+    b0_0: ["Numpad1", "Comma"], b0_1: ["Numpad2", "Period"], b0_2: ["Numpad3", "Slash"],
+    b1_0: ["Numpad4", "KeyK"], b1_1: ["Numpad5", "KeyL"], b1_2: ["Numpad6", "Semicolon"],
+    start: ["NumpadEnter", "ShiftRight"], select: ["NumpadAdd"],
   },
 };
+export const SPECIAL_ACTIONS = ["sp0", "sp1", "sp2", "sp3"];
+export const buttonAction = (rowFromBottom, col) => `b${rowFromBottom}_${col}`;
+
+// Defaults overridden by the player's saved bindings (custom: { layout: { action: [codes] } }).
+export function keymapFor(layout, custom = {}) {
+  return { ...DEFAULT_KEYS[layout], ...(custom[layout] || {}) };
+}
 
 // Resolves a game's control layout: rows of { label, button, id } (top row first)
 // plus a label -> RetroPad id map used by special-move macros.

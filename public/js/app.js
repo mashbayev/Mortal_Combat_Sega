@@ -1,4 +1,4 @@
-import { resolveControls, KEYBOARD, SPECIAL_KEYS } from "./schemes.js";
+import { resolveControls, keymapFor, SPECIAL_ACTIONS } from "./schemes.js";
 import { InputManager } from "./input.js";
 import { TouchControls } from "./touch.js";
 import { Emulator } from "./emulator.js";
@@ -18,7 +18,7 @@ const ERRORS = {
 // ---------- settings (per device) ----------
 const settings = loadSettings();
 function loadSettings() {
-  const defaults = { size: 1, opacity: 0.55, touch: "auto", filter: "2xScaleHQ.glslp", fighter: {}, skipBriefing: {} };
+  const defaults = { size: 1, opacity: 0.55, touch: "auto", filter: "2xScaleHQ.glslp", fighter: {}, skipBriefing: {}, keys: {} };
   try {
     return { ...defaults, ...JSON.parse(localStorage.getItem("ra.settings") || "{}") };
   } catch {
@@ -33,9 +33,10 @@ function saveSettings() {
 
 // Keyboard layouts per mode.
 const KEYBOARDS = {
-  solo: [{ player: 0, layout: "solo" }],
-  duo: [{ player: 0, layout: "p1" }, { player: 1, layout: "p2" }],
+  solo: [{ player: 0, layout: "main" }],
+  duo: [{ player: 0, layout: "main" }, { player: 1, layout: "p2" }],
 };
+const keymaps = (keyboard) => Object.fromEntries(keyboard.map((k) => [k.layout, keymapFor(k.layout, settings.keys)]));
 
 // Controls reference shown before a game (unless skipped) and from the top bar.
 function briefing(game, keyboard, inGame = false) {
@@ -132,6 +133,8 @@ function setupPlay(game, { keyboard, onSpecial, onFilter }) {
     onSpecial: (s) => onSpecial(s.seq),
   });
   const input = new InputManager(controls, () => {});
+  const bindKeys = () => input.useKeyboard(keyboard, keymaps(keyboard));
+  bindKeys();
 
   const applyLayout = () => {
     $("#touch").hidden = !touchVisible();
@@ -144,8 +147,10 @@ function setupPlay(game, { keyboard, onSpecial, onFilter }) {
   // F G H J fire the main player's special moves.
   if (game.specials) {
     window.addEventListener("keydown", (e) => {
-      const i = SPECIAL_KEYS.indexOf(e.code);
-      if (i < 0 || e.repeat) return;
+      if (e.repeat || document.querySelector("dialog[open]")) return;
+      const main = keymapFor("main", settings.keys);
+      const i = SPECIAL_ACTIONS.findIndex((a) => (main[a] || []).includes(e.code));
+      if (i < 0) return;
       const s = specialsFor()[i];
       if (s) onSpecial(s.seq);
     });
@@ -158,10 +163,22 @@ function setupPlay(game, { keyboard, onSpecial, onFilter }) {
     if (onFilter && settings.filter !== filter) onFilter((filter = settings.filter));
   });
   // The reference can change the fighter, so refresh the specials afterwards.
-  $("#btn-help").onclick = () => briefing(game, keyboard, true).then(syncSettings);
+  // It can also rebind keys, so re-apply them.
+  $("#btn-help").onclick = () =>
+    briefing(game, keyboard, true).then(() => {
+      syncSettings();
+      bindKeys();
+    });
   $("#btn-exit").onclick = () => (location.href = "/");
   $("#btn-fullscreen").onclick = toggleFullscreen;
-  return { controls, input, refresh: syncSettings };
+  return {
+    controls,
+    input,
+    refresh: () => {
+      syncSettings();
+      bindKeys();
+    },
+  };
 }
 
 function setupSettings(game, keyboard, onChange) {
@@ -175,9 +192,7 @@ function setupSettings(game, keyboard, onChange) {
   $("#set-filter").value = settings.filter;
   $("#set-size").value = settings.size;
   $("#set-opacity").value = settings.opacity;
-  const keys = keyboard.map((k) => `<p>${KEYBOARD[k.layout].help}</p>`).join("");
-  const specials = fighters.length ? "<p>Спецприёмы выбранного бойца: F G H J</p>" : "";
-  $("#help").innerHTML = `${game.hint ? `<p>${game.hint}</p>` : ""}${keys}${specials}<p>Геймпады подключаются автоматически.</p>`;
+  $("#help").innerHTML = `${game.hint ? `<p>${game.hint}</p>` : ""}<p>Все клавиши и их настройка — кнопка «Кнопки» в верхней панели.</p><p>Геймпады подключаются автоматически.</p>`;
 
   const sync = () => {
     settings.fighter[game.id] = $("#set-fighter").value;
@@ -218,7 +233,6 @@ async function runEmulator(game, { keyboard, gamepads, remote }) {
     onSpecial: (seq) => session && session.macros.play(0, seq),
     onFilter: (f) => session && session.emu.setFilter(f),
   });
-  play.input.useKeyboard(keyboard);
   play.input.useGamepads(gamepads);
 
   setStatus("connecting", "Загрузка игры…");
@@ -348,7 +362,6 @@ function startGuest(code) {
     if (!game) return setStatus("error", "Неизвестная игра");
     const play = setupPlay(game, { keyboard: KEYBOARDS.solo, onSpecial: (seq) => link.sendMacro(seq) });
     play.input.onChange = (_p, mask) => link.setMask(mask);
-    play.input.useKeyboard(KEYBOARDS.solo);
     play.input.useGamepads([0, 0, 0, 0]);
     $("#room").hidden = false;
     $("#room-code").textContent = code;

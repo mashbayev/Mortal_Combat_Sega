@@ -375,3 +375,23 @@ kbd {
   table.ref td { padding: 6px 4px; }
   .briefing { padding: 16px; }
 }
+.keybind {
+  appearance: none;
+  background: transparent;
+  border: 1px dashed transparent;
+  border-radius: 8px;
+  padding: 2px 4px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.keybind:hover { border-color: #55556a; background: rgba(255, 255, 255, 0.04); }
+.keybind.listening {
+  border: 1px solid var(--accent-2);
+  color: var(--accent-2);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 8px;
+  animation: blink 1s infinite;
+}
+.unbound { color: var(--err); font-size: 12px; font-weight: 700; }

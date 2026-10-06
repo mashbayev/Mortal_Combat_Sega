@@ -1,4 +1,4 @@
-import { DIRS, KEYBOARD } from "./schemes.js";
+import { DIRS, buttonAction } from "./schemes.js";
 
 // Collects keyboard, gamepad and touch state into one bitmask per local player.
 // Sources set their own partial masks; the player's mask is the OR of all of them.
@@ -29,21 +29,20 @@ export class InputManager {
     cancelAnimationFrame(this.raf);
   }
 
-  // layouts: [{ player, layout: "solo" | "p1" | "p2" }]
-  useKeyboard(layouts) {
+  // layouts: [{ player, layout: "main" | "p2" }], keymaps: layout -> { action: [codes] }
+  useKeyboard(layouts, keymaps) {
     this.keyBindings.clear();
+    const rows = [...this.controls.rows].reverse(); // bottom row first, like the keymap
     for (const { player, layout } of layouts) {
-      const kb = KEYBOARD[layout];
-      for (const [code, dir] of Object.entries(kb.dirs)) this.keyBindings.set(code, { player, bit: DIRS[dir] });
-      // Keyboard rows are bottom-up, on-screen rows are top-down.
-      [...this.controls.rows].reverse().forEach((row, r) => {
-        row.forEach((cell, c) => {
-          for (const code of (kb.rows[r] && kb.rows[r][c]) || []) this.keyBindings.set(code, { player, bit: cell.id });
-        });
-      });
-      for (const code of kb.start) this.keyBindings.set(code, { player, bit: this.scheme.start });
-      if (this.scheme.select) for (const code of kb.select) this.keyBindings.set(code, { player, bit: this.scheme.select.id });
+      const km = keymaps[layout];
+      const bind = (codes, bit) => (codes || []).forEach((code) => this.keyBindings.set(code, { player, bit }));
+      for (const [dir, bit] of Object.entries(DIRS)) bind(km[dir], bit);
+      rows.forEach((row, r) => row.forEach((cell, c) => bind(km[buttonAction(r, c)], cell.id)));
+      bind(km.start, this.scheme.start);
+      if (this.scheme.select) bind(km.select, this.scheme.select.id);
     }
+    this.pressedKeys.clear();
+    this.syncKeyboard();
   }
 
   // players[i] is the local player controlled by the i-th connected gamepad.
