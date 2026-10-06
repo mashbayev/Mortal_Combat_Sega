@@ -170,7 +170,8 @@ body.playing { overflow: hidden; overscroll-behavior: none; touch-action: none; 
 #ejs-target .ejs_menu_bar,
 #ejs-target .ejs_virtualGamepad_parent,
 #ejs-target .ejs_context_menu,
-#ejs-target .ejs_menu_button { display: none !important; }
+#ejs-target .ejs_menu_button,
+#ejs-target .ejs_virtualGamepad_open { display: none !important; }
 .stage-msg {
   position: absolute;
   inset: 0;
@@ -338,10 +339,28 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 /* ---------- controls reference ("Перед боем") ---------- */
 dialog.wide { width: min(720px, calc(100vw - 24px)); }
 .briefing { display: grid; gap: 18px; padding: 20px; }
+.briefing header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .briefing header h2 { margin: 0; font-size: 24px; }
+.briefing-close { flex: none; font-size: 22px; margin: -6px -6px 0 0; }
 .briefing header p { margin: 0; text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; }
 .briefing h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-.briefing footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; position: sticky; bottom: -20px; background: var(--panel); padding: 12px 0 4px; }
+.briefing footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+  position: sticky;
+  bottom: -20px;
+  margin-bottom: -20px;
+  background: var(--panel);
+  padding: 12px 0 20px;
+  border-top: 1px solid var(--line);
+}
+.briefing footer .check { flex: 1 1 100%; }
+.briefing footer .btn.big { flex: 1 1 auto; }
+.briefing details summary { cursor: pointer; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+.briefing details[open] summary { margin-bottom: 8px; }
 .briefing .small { font-size: 12px; margin: 8px 0 0; }
 .check { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; cursor: pointer; }
 .check input { accent-color: var(--accent); width: 18px; height: 18px; }
@@ -417,3 +436,5 @@ kbd {
 .dialog-actions .btn { flex: 1 1 140px; }
 .btn.resume { background: #1f6f3f; border-color: #2f8f4e; flex-basis: 100% !important; }
 .btn.resume small { font-weight: 400; opacity: 0.8; margin-left: 6px; }
+/* Two players on one keyboard makes no sense on a phone. */
+@media (pointer: coarse) { .game button[data-act="duo"] { display: none; } }

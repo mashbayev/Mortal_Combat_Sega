@@ -103,7 +103,8 @@ function specialsBlock(game, fighter, labels, saved) {
     <p class="muted small">→ — вперёд (к сопернику), ← — назад. Кнопки спецприёмов сами учитывают, в какую сторону смотрит боец.</p>`;
 }
 
-// Resolves when the player presses "В бой!" (or closes the dialog when opened mid-game).
+// Resolves true when the player presses "В бой!" / "Вернуться в игру", false when they
+// close it with ✕ or Esc (before a game that means "don't start").
 export function showBriefing({ game, keyboard, settings, save, inGame = false }) {
   const dlg = document.getElementById("briefing");
   const labels = resolveControls(game).rows.flat().map((c) => c.label);
@@ -114,12 +115,16 @@ export function showBriefing({ game, keyboard, settings, save, inGame = false })
     const fighter = settings.fighter[game.id] || "";
     dlg.innerHTML = `
       <form method="dialog" class="briefing">
-        <header><p class="muted">${inGame ? "Справочник" : "Перед боем"}</p><h2>${game.title}</h2></header>
+        <header>
+          <div><p class="muted">${inGame ? "Справочник" : "Перед боем"}</p><h2>${game.title}</h2></div>
+          <button type="button" class="icon-btn briefing-close" data-close aria-label="${inGame ? "Закрыть" : "Отмена"}" title="${inGame ? "Закрыть" : "Отмена — вернуться на главную"}">✕</button>
+        </header>
         ${isTouch ? `<section><h3>На телефоне</h3>${touchHelp(game)}</section>` : ""}
-        <section>
-          <h3>${isTouch ? "Клавиатура и геймпад" : "Управление"}</h3>
-          ${controlsTable(game, keyboard, settings.keys)}
-        </section>
+        ${
+          isTouch
+            ? `<details><summary>Клавиатура и геймпад</summary>${controlsTable(game, keyboard, settings.keys)}</details>`
+            : `<section><h3>Управление</h3>${controlsTable(game, keyboard, settings.keys)}</section>`
+        }
         ${
           game.basics
             ? `<section><h3>Базовые приёмы</h3><table class="ref"><tbody>${game.basics
@@ -210,6 +215,10 @@ export function showBriefing({ game, keyboard, settings, save, inGame = false })
       cell.textContent = "Нажмите клавишу…";
       return;
     }
+    if (e.target.closest("[data-close]")) {
+      dlg.close("cancel");
+      return;
+    }
     if (e.target.closest("[data-reset-keys]")) {
       delete settings.keys[game.id];
       save();
@@ -222,12 +231,13 @@ export function showBriefing({ game, keyboard, settings, save, inGame = false })
   };
 
   render();
+  dlg.returnValue = "";
   return new Promise((resolve) => {
     dlg.onclose = () => {
       window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("keyup", onKeyUp, true);
       listening = null;
-      resolve();
+      resolve(dlg.returnValue === "go");
     };
     dlg.showModal();
   });

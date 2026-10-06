@@ -44,11 +44,13 @@ const keymaps = (game, keyboard) =>
   Object.fromEntries(keyboard.map((k) => [k.layout, keymapFor(game, k.layout, settings.keys)]));
 
 // Controls reference shown before a game (unless skipped) and from the top bar.
+// Resolves true to go on, false if the player cancelled with ✕ / Esc.
 function briefing(game, keyboard, inGame = false) {
-  const goFullscreen = () => {
-    if (matchMedia("(pointer: coarse)").matches) enterFullscreen();
+  const goFullscreen = (go) => {
+    if (go && matchMedia("(pointer: coarse)").matches) enterFullscreen();
+    return go;
   };
-  if (!inGame && settings.skipBriefing[game.id]) return Promise.resolve().then(goFullscreen);
+  if (!inGame && settings.skipBriefing[game.id]) return Promise.resolve(true).then(goFullscreen);
   return showBriefing({ game, keyboard, settings, save: saveSettings, inGame }).then(goFullscreen);
 }
 
@@ -112,9 +114,11 @@ function renderHome() {
       resumeState = saves[game.id].state;
       mode = saves[game.id].mode;
     }
-    briefing(game, mode === "duo" ? KEYBOARDS.duo : KEYBOARDS.solo).then(() =>
-      mode === "host" ? startHost(game, resumeState) : startLocal(game, mode, resumeState)
-    );
+    briefing(game, mode === "duo" ? KEYBOARDS.duo : KEYBOARDS.solo).then((go) => {
+      if (!go) return; // cancelled: stay on the home page
+      if (mode === "host") startHost(game, resumeState);
+      else startLocal(game, mode, resumeState);
+    });
   };
   $("#join-form").onsubmit = (e) => {
     e.preventDefault();
@@ -463,7 +467,8 @@ function startGuest(code) {
     });
     // The reference opens on top while the connection is set up; its button is also the
     // tap browsers want before playing sound.
-    briefing(game, KEYBOARDS.solo).then(() => {
+    briefing(game, KEYBOARDS.solo).then((go) => {
+      if (!go) return (location.href = "/"); // cancelled: leave the room
       play.refresh();
       video.play().catch(() => {});
     });
