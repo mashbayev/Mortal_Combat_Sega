@@ -47,8 +47,10 @@ app.get("/r/:code", (_req, res) => res.sendFile(path.join(ROOT, "public", "index
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws", maxPayload: 64 * 1024 });
 const rooms = new Rooms({ gameExists: (id) => loadGames().some((g) => g.id === id) });
+const log = (...args) => console.log(new Date().toISOString().slice(11, 19), ...args);
 
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, req) => {
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   const client = {
     room: null,
     role: null,
@@ -65,9 +67,14 @@ wss.on("connection", (ws) => {
     } catch {
       return client.send({ type: "error", error: "bad-json" });
     }
+    if (["create", "join", "leave"].includes(msg.type)) log(ip, msg.type, msg.code || msg.game || "");
     rooms.handle(client, msg);
+    if (msg.type === "create" || msg.type === "join") log(ip, "->", client.role || "rejected", client.room || "");
   });
-  ws.on("close", () => rooms.leave(client));
+  ws.on("close", () => {
+    if (client.room) log(ip, "disconnected from", client.room, `(${client.role})`);
+    rooms.leave(client);
+  });
 });
 
 // Drop dead connections (phones that lost network) so rooms get freed.

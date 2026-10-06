@@ -1,13 +1,13 @@
-import { resolveControls, KEYBOARD } from "./schemes.js";
+import { resolveControls, KEYBOARD, SPECIAL_KEYS } from "./schemes.js";
 import { InputManager } from "./input.js";
 import { TouchControls } from "./touch.js";
 import { Emulator } from "./emulator.js";
 import { MegaDriveRam } from "./ram.js";
 import { MacroPlayer } from "./macros.js";
 import { Signal, HostLink, GuestLink } from "./net.js";
+import { showBriefing } from "./briefing.js";
 
 const $ = (sel) => document.querySelector(sel);
-const SPECIAL_KEYS = ["Digit1", "Digit2", "Digit3", "Digit4"];
 const ERRORS = {
   "room-not-found": "Комната не найдена. Проверьте код или попросите друга создать новую.",
   "room-full": "В этой комнате уже двое игроков.",
@@ -18,7 +18,7 @@ const ERRORS = {
 // ---------- settings (per device) ----------
 const settings = loadSettings();
 function loadSettings() {
-  const defaults = { size: 1, opacity: 0.55, touch: "auto", filter: "2xScaleHQ.glslp", fighter: {} };
+  const defaults = { size: 1, opacity: 0.55, touch: "auto", filter: "2xScaleHQ.glslp", fighter: {}, skipBriefing: {} };
   try {
     return { ...defaults, ...JSON.parse(localStorage.getItem("ra.settings") || "{}") };
   } catch {
@@ -29,6 +29,18 @@ function saveSettings() {
   try {
     localStorage.setItem("ra.settings", JSON.stringify(settings));
   } catch {}
+}
+
+// Keyboard layouts per mode.
+const KEYBOARDS = {
+  solo: [{ player: 0, layout: "solo" }],
+  duo: [{ player: 0, layout: "p1" }, { player: 1, layout: "p2" }],
+};
+
+// Controls reference shown before a game (unless skipped) and from the top bar.
+function briefing(game, keyboard, inGame = false) {
+  if (!inGame && settings.skipBriefing[game.id]) return Promise.resolve();
+  return showBriefing({ game, keyboard, settings, save: saveSettings, inGame });
 }
 
 // ---------- screens ----------
@@ -72,8 +84,10 @@ function renderHome() {
     const btn = e.target.closest("button[data-act]");
     if (!btn) return;
     const game = config.games.find((g) => g.id === btn.closest(".game").dataset.id);
-    if (btn.dataset.act === "host") startHost(game);
-    else startLocal(game, btn.dataset.act);
+    const mode = btn.dataset.act;
+    briefing(game, mode === "duo" ? KEYBOARDS.duo : KEYBOARDS.solo).then(() =>
+      mode === "host" ? startHost(game) : startLocal(game, mode)
+    );
   };
   $("#join-form").onsubmit = (e) => {
     e.preventDefault();
@@ -127,8 +141,8 @@ function setupPlay(game, { keyboard, onSpecial, onFilter }) {
   };
   applyLayout();
 
-  // Number keys fire special moves on the keyboard (not in two-players-one-keyboard mode).
-  if (game.specials && !keyboard.some((k) => k.layout === "p1")) {
+  // F G H J fire the main player's special moves.
+  if (game.specials) {
     window.addEventListener("keydown", (e) => {
       const i = SPECIAL_KEYS.indexOf(e.code);
       if (i < 0 || e.repeat) return;
@@ -139,13 +153,15 @@ function setupPlay(game, { keyboard, onSpecial, onFilter }) {
 
   $("#filter-field").hidden = !onFilter;
   let filter = settings.filter;
-  setupSettings(game, keyboard, () => {
+  const syncSettings = setupSettings(game, keyboard, () => {
     applyLayout();
     if (onFilter && settings.filter !== filter) onFilter((filter = settings.filter));
   });
+  // The reference can change the fighter, so refresh the specials afterwards.
+  $("#btn-help").onclick = () => briefing(game, keyboard, true).then(syncSettings);
   $("#btn-exit").onclick = () => (location.href = "/");
   $("#btn-fullscreen").onclick = toggleFullscreen;
-  return { controls, input };
+  return { controls, input, refresh: syncSettings };
 }
 
 function setupSettings(game, keyboard, onChange) {
@@ -160,7 +176,7 @@ function setupSettings(game, keyboard, onChange) {
   $("#set-size").value = settings.size;
   $("#set-opacity").value = settings.opacity;
   const keys = keyboard.map((k) => `<p>${KEYBOARD[k.layout].help}</p>`).join("");
-  const specials = fighters.length && !keyboard.some((k) => k.layout === "p1") ? "<p>Спецприёмы: клавиши 1–4</p>" : "";
+  const specials = fighters.length ? "<p>Спецприёмы выбранного бойца: F G H J</p>" : "";
   $("#help").innerHTML = `${game.hint ? `<p>${game.hint}</p>` : ""}${keys}${specials}<p>Геймпады подключаются автоматически.</p>`;
 
   const sync = () => {
@@ -178,6 +194,11 @@ function setupSettings(game, keyboard, onChange) {
   dlg.onchange = sync;
   sync();
   $("#btn-settings").onclick = () => dlg.showModal();
+  // Re-read settings changed elsewhere (the reference dialog) into the form.
+  return () => {
+    $("#set-fighter").value = settings.fighter[game.id] || "";
+    sync();
+  };
 }
 
 function toggleFullscreen() {
@@ -243,7 +264,7 @@ async function runEmulator(game, { keyboard, gamepads, remote }) {
 async function startLocal(game, mode) {
   const duo = mode === "duo";
   await runEmulator(game, {
-    keyboard: duo ? [{ player: 0, layout: "p1" }, { player: 1, layout: "p2" }] : [{ player: 0, layout: "solo" }],
+    keyboard: duo ? KEYBOARDS.duo : KEYBOARDS.solo,
     gamepads: duo ? [0, 1] : [0, 0, 0, 0],
     remote: false,
   });
@@ -252,7 +273,7 @@ async function startLocal(game, mode) {
 async function startHost(game) {
   const signal = new Signal();
   const sessionReady = runEmulator(game, {
-    keyboard: [{ player: 0, layout: "solo" }],
+    keyboard: KEYBOARDS.solo,
     gamepads: [0, 0, 0, 0],
     remote: true,
   });
@@ -325,9 +346,9 @@ function startGuest(code) {
   signal.on("joined", (m) => {
     game = config.games.find((g) => g.id === m.game);
     if (!game) return setStatus("error", "Неизвестная игра");
-    const play = setupPlay(game, { keyboard: [{ player: 0, layout: "solo" }], onSpecial: (seq) => link.sendMacro(seq) });
+    const play = setupPlay(game, { keyboard: KEYBOARDS.solo, onSpecial: (seq) => link.sendMacro(seq) });
     play.input.onChange = (_p, mask) => link.setMask(mask);
-    play.input.useKeyboard([{ player: 0, layout: "solo" }]);
+    play.input.useKeyboard(KEYBOARDS.solo);
     play.input.useGamepads([0, 0, 0, 0]);
     $("#room").hidden = false;
     $("#room-code").textContent = code;
@@ -351,6 +372,12 @@ function startGuest(code) {
         if (state === "connected" && $("#stage-msg").textContent === "Соединяемся…") stageMessage(null);
         if (state === "error") stageMessage(text);
       },
+    });
+    // The reference opens on top while the connection is set up; its button is also the
+    // tap browsers want before playing sound.
+    briefing(game, KEYBOARDS.solo).then(() => {
+      play.refresh();
+      video.play().catch(() => {});
     });
   });
 }

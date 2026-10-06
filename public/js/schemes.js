@@ -32,35 +32,32 @@ export const SCHEMES = {
   },
 };
 
+// Main player's keys (solo, online, and player 1 when two share a keyboard).
+const MAIN = {
+  dirs: { KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right" },
+  // UMK3: bottom row LP RUN LK = R E T, top row HP BLK HK = Y Q U.
+  rows: [[["KeyR"], ["KeyE"], ["KeyT"]], [["KeyY"], ["KeyQ"], ["KeyU"]]],
+  start: ["Enter"],
+  select: ["Backspace"],
+  help: "Движение: WASD · LP R · RUN E · LK T · HP Y · BLK Q · HK U · Start: Enter",
+};
+
+export const SPECIAL_KEYS = ["KeyF", "KeyG", "KeyH", "KeyJ"];
+
 // Keyboard layouts by KeyboardEvent.code. `rows` keys follow the on-screen rows bottom-up:
 // rows[0] is the bottom row of buttons, rows[1] the row above it.
 export const KEYBOARD = {
-  solo: {
-    dirs: {
-      ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
-      KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right",
-    },
-    rows: [[["KeyJ"], ["KeyK"], ["KeyL"]], [["KeyU"], ["KeyI"], ["KeyO"]]],
-    start: ["Enter", "Space"],
-    select: ["ShiftRight", "Backspace"],
-    help: "Движение: стрелки / WASD · верхний ряд: U I O · нижний ряд: J K L · Start: Enter",
-  },
-  p1: {
-    dirs: { KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right" },
-    rows: [[["KeyF"], ["KeyG"], ["KeyH"]], [["KeyR"], ["KeyT"], ["KeyY"]]],
-    start: ["Digit1"],
-    select: ["Digit2"],
-    help: "Игрок 1: WASD · верх R T Y · низ F G H · Start: 1",
-  },
+  solo: MAIN,
+  p1: { ...MAIN, help: `Игрок 1 — ${MAIN.help}` },
   p2: {
     dirs: { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" },
     rows: [
       [["Numpad1", "Comma"], ["Numpad2", "Period"], ["Numpad3", "Slash"]],
       [["Numpad4", "KeyK"], ["Numpad5", "KeyL"], ["Numpad6", "Semicolon"]],
     ],
-    start: ["Enter", "NumpadEnter"],
-    select: ["ShiftRight", "NumpadAdd"],
-    help: "Игрок 2: стрелки · верх Numpad 4 5 6 (K L ;) · низ Numpad 1 2 3 (, . /) · Start: Enter",
+    start: ["NumpadEnter", "ShiftRight"],
+    select: ["NumpadAdd"],
+    help: "Игрок 2: стрелки · низ LP RUN LK: Numpad 1 2 3 (или , . /) · верх HP BLK HK: Numpad 4 5 6 (или K L ;) · Start: Numpad Enter или правый Shift",
   },
 };
 

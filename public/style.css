@@ -242,6 +242,7 @@ body.playing { overflow: hidden; overscroll-behavior: none; touch-action: none; 
 .pad-btn[data-label="HP"], .pad-btn[data-label="LP"] { background: rgba(200, 30, 45, 0.85); }
 .pad-btn[data-label="HK"], .pad-btn[data-label="LK"] { background: rgba(30, 110, 200, 0.85); }
 .pad-btn[data-label="BLK"] { background: rgba(210, 160, 20, 0.85); }
+.pad-btn[data-label="RUN"] { background: rgba(47, 143, 78, 0.85); }
 .pad-btn.down, .sys-btn.down, .special-btn.down { opacity: 1; transform: scale(0.94); filter: brightness(1.35); }
 .sys-zone { display: flex; gap: 10px; }
 .sys-btn {
@@ -318,4 +319,59 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 
 @media (max-width: 520px) {
   .room .muted, .status span { font-size: 12px; }
+}
+
+/* ---------- controls reference ("Перед боем") ---------- */
+dialog.wide { width: min(720px, calc(100vw - 24px)); }
+.briefing { display: grid; gap: 18px; padding: 20px; }
+.briefing header h2 { margin: 0; font-size: 24px; }
+.briefing header p { margin: 0; text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; }
+.briefing h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.briefing footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; position: sticky; bottom: -20px; background: var(--panel); padding: 12px 0 4px; }
+.briefing .small { font-size: 12px; margin: 8px 0 0; }
+.check { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; cursor: pointer; }
+.check input { accent-color: var(--accent); width: 18px; height: 18px; }
+table.ref { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.ref th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; padding: 0 8px 6px; }
+table.ref td { padding: 7px 8px; border-top: 1px solid var(--line); vertical-align: middle; }
+table.ref td:first-child { width: 1%; white-space: nowrap; }
+table.ref .move { white-space: nowrap; }
+kbd {
+  display: inline-block;
+  min-width: 26px;
+  padding: 3px 7px;
+  border: 1px solid #44445a;
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  font: 700 13px/1.2 ui-monospace, Menlo, monospace;
+  text-align: center;
+  margin: 1px 0;
+}
+.chip {
+  display: inline-block;
+  min-width: 36px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #3a3a4a;
+  color: #fff;
+  font: 800 12px/1.3 system-ui, sans-serif;
+  text-align: center;
+}
+.chip-HP, .chip-LP { background: #c81e2d; }
+.chip-HK, .chip-LK { background: #1e6ec8; }
+.chip-BLK { background: #d2a014; color: #111; }
+.chip-RUN { background: #2f8f4e; }
+.arrow { font-size: 18px; color: var(--accent-2); margin: 0 1px; }
+.touch-help { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: center; }
+.touch-help p { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.touch-help-stick { text-align: center; }
+.touch-help .ring { width: 74px; height: 74px; border: 2px solid #555; border-radius: 50%; margin: 0 auto; position: relative; }
+.touch-help .ring i { position: absolute; width: 30px; height: 30px; left: 40px; top: 12px; border-radius: 50%; background: #888; }
+.touch-help-btns { text-align: center; }
+.touch-help-btns div { display: flex; gap: 6px; justify-content: center; margin-bottom: 6px; }
+@media (max-width: 520px) {
+  table.ref { font-size: 13px; }
+  table.ref td { padding: 6px 4px; }
+  .briefing { padding: 16px; }
 }
