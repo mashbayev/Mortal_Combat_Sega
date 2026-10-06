@@ -40,8 +40,11 @@ const keymaps = (keyboard) => Object.fromEntries(keyboard.map((k) => [k.layout, 
 
 // Controls reference shown before a game (unless skipped) and from the top bar.
 function briefing(game, keyboard, inGame = false) {
-  if (!inGame && settings.skipBriefing[game.id]) return Promise.resolve();
-  return showBriefing({ game, keyboard, settings, save: saveSettings, inGame });
+  const goFullscreen = () => {
+    if (matchMedia("(pointer: coarse)").matches) enterFullscreen();
+  };
+  if (!inGame && settings.skipBriefing[game.id]) return Promise.resolve().then(goFullscreen);
+  return showBriefing({ game, keyboard, settings, save: saveSettings, inGame }).then(goFullscreen);
 }
 
 // ---------- screens ----------
@@ -216,12 +219,26 @@ function setupSettings(game, keyboard, onChange) {
   };
 }
 
-function toggleFullscreen() {
+// iPhone Safari has no Fullscreen API for pages; there the only way is a home-screen web app.
+const canFullscreen = () => !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+const isStandalone = () => matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches || navigator.standalone;
+
+function enterFullscreen() {
   const el = document.documentElement;
+  const request = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!request || document.fullscreenElement || document.webkitFullscreenElement) return;
+  Promise.resolve(request.call(el, { navigationUI: "hide" })).catch(() => {});
+}
+
+function toggleFullscreen() {
+  if (!canFullscreen()) {
+    if (!isStandalone()) $("#ios-fullscreen").showModal();
+    return;
+  }
   if (document.fullscreenElement || document.webkitFullscreenElement) {
     (document.exitFullscreen || document.webkitExitFullscreen).call(document);
   } else {
-    (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el, { navigationUI: "hide" });
+    enterFullscreen();
   }
 }
 

@@ -279,7 +279,19 @@ body.playing { overflow: hidden; overscroll-behavior: none; touch-action: none; 
 
 /* Landscape phone: game centred full-height, controls overlay the black side bars. */
 @media (orientation: landscape) {
-  body.with-touch { --topbar: 36px; }
+  /* The top bar floats over the black side bars so the game gets the full height. */
+  body.with-touch { --topbar: 0px; }
+  body.with-touch .topbar {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 40px;
+    background: transparent;
+    border: 0;
+    pointer-events: none;
+  }
+  body.with-touch .topbar > * { pointer-events: auto; }
+  body.with-touch .topbar .status span { display: none; }
+  body.with-touch .topbar .icon-btn, body.with-touch .topbar .btn { opacity: 0.6; }
   body.with-touch .touch { position: absolute; inset: var(--topbar) 0 0 0; pointer-events: none; z-index: 2; }
   body.with-touch .touch > * { pointer-events: auto; }
   .stick-zone { left: 0; top: 0; bottom: 0; width: 40%; }
@@ -395,3 +407,6 @@ kbd {
   animation: blink 1s infinite;
 }
 .unbound { color: var(--err); font-size: 12px; font-weight: 700; }
+
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.ios-share { display: inline-block; transform: rotate(-90deg); }
